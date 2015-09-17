@@ -40,6 +40,7 @@ class Gui_Manager {
   Button intensityFactorButton;
   Button loglinPlotButton;
   Button filtBPButton;
+  Button filtNotchButton;
   Button fftNButton;
   Button smoothingButton;
   Button maxDisplayFreqButton;
@@ -48,7 +49,7 @@ class Gui_Manager {
   //these two buttons toggle between EEG graph state (they are mutually exclusive states)
   Button showMontageButton; // to show uV time graph as opposed to channel controller
   Button showChannelControllerButton; //to drawChannelController on top of gMontage
-  boolean isChannelControllerVisible;
+  // boolean isChannelControllerVisible;
 
   TextBox titleMontage, titleFFT,titleSpectrogram;
   TextBox[] chanValuesMontage;
@@ -85,8 +86,8 @@ class Gui_Manager {
   public final static int GUI_PAGE_HEADPLOT_SETUP = 2;
   public final static int N_GUI_PAGES = 3;
   
-  public final static String stopButton_pressToStop_txt = "Press to Stop";
-  public final static String stopButton_pressToStart_txt = "Press to Start";
+  public final static String stopButton_pressToStop_txt = "Stop Data Stream";
+  public final static String stopButton_pressToStart_txt = "Start Data Stream";
   
   Gui_Manager(PApplet parent,int win_x, int win_y,int nchan,float displayTime_sec, float default_yScale_uV, 
     String filterDescription, float smooth_fac) {  
@@ -96,7 +97,7 @@ class Gui_Manager {
     whichChannelForSpectrogram = 0; //assume
     
      //define some layout parameters
-    int axes_x, axes_y;
+    float axes_x, axes_y;
     float spacer_bottom = 30/float(win_y); //want this to be a fixed 30 pixels
     float spacer_top = float(controlPanelCollapser.but_dy)/float(win_y);
     float gutter_topbot = 0.03f;
@@ -134,20 +135,33 @@ class Gui_Manager {
       (1.0f-left_right_split)-gutter_left-gutter_right, 
       available_top2bot-title_gutter-spacer_top
     }; //from left, from top, width, height
-    axes_x = int(float(win_x)*axisMontage_relPos[2]);  //width of the axis in pixels
-    axes_y = int(float(win_y)*axisMontage_relPos[3]);  //height of the axis in pixels
-    gMontage = new Graph2D(parent, axes_x, axes_y, false);  //last argument is whether the axes cross at zero
+    axes_x = float(win_x)*axisMontage_relPos[2];  //width of the axis in pixels
+    axes_y = float(win_y)*axisMontage_relPos[3];  //height of the axis in pixels
+    gMontage = new Graph2D(parent, int(axes_x), int(axes_y), false);  //last argument is whether the axes cross at zero
     setupMontagePlot(gMontage, win_x, win_y, axisMontage_relPos,displayTime_sec,fontInfo,filterDescription);
-  
+
+    println("Gui_Manager: Buttons: " + int(float(win_x)*axisMontage_relPos[0]) + ", " + (int(float(win_y)*axisMontage_relPos[1])-40));
+
+    showMontageButton = new Button (int(float(win_x)*axisMontage_relPos[0]) - 1, int(float(win_y)*axisMontage_relPos[1])-45, 125, 21, "EEG DATA", 14); 
+    showMontageButton.makeDropdownButton(true);
+    showMontageButton.setColorPressed(color(184,220,105));
+    showMontageButton.setColorNotPressed(color(255));
+    showMontageButton.hasStroke(false);
+    showMontageButton.setIsActive(true);
+    showMontageButton.buttonFont = f1;
+    showMontageButton.textColorActive = bgColor;
+
+
+    showChannelControllerButton = new Button (int(float(win_x)*axisMontage_relPos[0])+127, int(float(win_y)*axisMontage_relPos[1])-45, 125, 21, "CHAN SET", 14);
+    showChannelControllerButton.makeDropdownButton(true);
+    showChannelControllerButton.setColorPressed(color(184,220,105));
+    showChannelControllerButton.setColorNotPressed(color(255));
+    showChannelControllerButton.hasStroke(false);
+    showChannelControllerButton.setIsActive(false);
+    showChannelControllerButton.textColorActive = bgColor;
+
     //setup montage controller
     cc = new ChannelController(x_cc, y_cc, w_cc, h_cc, axes_x, axes_y);
-
-    println("Buttons: " + int(float(win_x)*axisMontage_relPos[0]) + ", " + (int(float(win_y)*axisMontage_relPos[1])-40));
-
-    showMontageButton = new Button (int(float(win_x)*axisMontage_relPos[0]), int(float(win_y)*axisMontage_relPos[1])-45, 120, 20, "Graph", 14); 
-    showChannelControllerButton = new Button (int(float(win_x)*axisMontage_relPos[0])+120, int(float(win_y)*axisMontage_relPos[1])-45, 120, 20, "Channel Settings", 14);
-    showMontageButton.setIsActive(true);
-    showChannelControllerButton.setIsActive(false);
 
 
     //setup the FFT plot...bottom on left side
@@ -166,7 +180,7 @@ class Gui_Manager {
     }; //from left, from top, width, height
     axes_x = int(float(win_x)*axisFFT_relPos[2]);  //width of the axis in pixels
     axes_y = int(float(win_y)*axisFFT_relPos[3]);  //height of the axis in pixels
-    gFFT = new Graph2D(parent, axes_x, axes_y, false);  //last argument is whether the axes cross at zero
+    gFFT = new Graph2D(parent, int(axes_x), int(axes_y), false);  //last argument is whether the axes cross at zero
     setupFFTPlot(gFFT, win_x, win_y, axisFFT_relPos,fontInfo);
         
     //setup the spectrogram plot
@@ -192,24 +206,16 @@ class Gui_Manager {
     
     //setup the buttons
     int w,h,x,y;
-           
-    //setup stop button
-    w = 120;    //button width
-    h = 35;     //button height, was 25
-    // x = win_x - int(gutter_right*float(win_x)) - w;
-    x = int(float(win_x) * 0.3f);
-    // y = win_y - int(0.5*gutter_topbot*float(win_y)) - h - int(spacer_bottom*(float(win_y)));
-    y = int(0.5*gutter_topbot*float(win_y));
-    //int y = win_y - h;
-    stopButton = new Button(x,y,w,h,stopButton_pressToStart_txt,fontInfo.buttonLabel_size);
-    
+    h = 26;     //button height, was 25
+    y = 2;      //button y position, measured top
+              
+    // //// Is this block used anymore?  Chip 2014-11-23
     //setup the gui page button
-
     w = 80; //button width
     x = (int)((3*gutter_between_buttons + left_right_split) * win_x);
-
     // x = int(float(win_x)*0.3f);
     // guiPageButton = new Button(x,y,w,h,"Page\n" + (guiPage+1) + " of " + N_GUI_PAGES,fontInfo.buttonLabel_size);
+    // //// End Ques by Chip 2014-11-12    
         
     //setup the channel on/off buttons...only plot 8 buttons, even if there are more channels
     //because as of 4/3/2014, you can only turn on/off the higher channels (the ones above chan 8)
@@ -252,56 +258,53 @@ class Gui_Manager {
     biasButton = new Button(x,y,w1,h1,"Bias\n" + "Auto",fontInfo.buttonLabel_size);
 
 
-
     //setup the buttons to control the processing and frequency displays
-    int Ibut=0;    w = w_orig;    h = h;
+    int Ibut=0;    
+    w = 70;    
+    h = 26;
+    y = 2;
+
+    x = calcButtonXLocation(Ibut++, win_x, w, xoffset,gutter_between_buttons);
+    maxDisplayFreqButton = new Button(x,y,w,h,"Max Freq\n" + round(maxDisplayFreq_Hz[maxDisplayFreq_ind]) + " Hz",fontInfo.buttonLabel_size);
+
+    x = calcButtonXLocation(Ibut++, win_x, w, xoffset,gutter_between_buttons);
+    showPolarityButton = new Button(x,y,w,h,"Polarity\n" + headPlot1.getUsePolarityTrueFalse(),fontInfo.buttonLabel_size);
+
+    x = calcButtonXLocation(Ibut++, win_x, w, xoffset,gutter_between_buttons);
+    smoothingButton = new Button(x,y,w,h,"Smooth\n" + headPlot1.smooth_fac,fontInfo.buttonLabel_size);
+
+    x = calcButtonXLocation(Ibut++, win_x, w, xoffset,gutter_between_buttons);
+    loglinPlotButton = new Button(x,y,w,h,"Vert Scale\n" + get_vertScaleAsLogText(),fontInfo.buttonLabel_size);
+
+    //x = calcButtonXLocation(Ibut++, win_x, w, xoffset,gutter_between_buttons);
+    //fftNButton = new Button(x,y,w,h,"FFT N\n" + Nfft,fontInfo.buttonLabel_size);
+
+    x = calcButtonXLocation(Ibut++, win_x, w, xoffset,gutter_between_buttons);
+    intensityFactorButton = new Button(x,y,w,h,"Vert Scale\n" + round(vertScale_uV) + "uV",fontInfo.buttonLabel_size);
+
+    x = calcButtonXLocation(Ibut++, win_x, w, xoffset,gutter_between_buttons);
+    filtNotchButton = new Button(x,y,w,h,"Notch\n" + eegProcessing.getShortNotchDescription(),fontInfo.buttonLabel_size);    
     
     x = calcButtonXLocation(Ibut++, win_x, w, xoffset,gutter_between_buttons);
     filtBPButton = new Button(x,y,w,h,"BP Filt\n" + eegProcessing.getShortFilterDescription(),fontInfo.buttonLabel_size);
-  
-    x = calcButtonXLocation(Ibut++, win_x, w, xoffset,gutter_between_buttons);
-    intensityFactorButton = new Button(x,y,w,h,"Vert Scale\n" + round(vertScale_uV) + "uV",fontInfo.buttonLabel_size);
-  
-    //x = calcButtonXLocation(Ibut++, win_x, w, xoffset,gutter_between_buttons);
-    //fftNButton = new Button(x,y,w,h,"FFT N\n" + Nfft,fontInfo.buttonLabel_size);
-   
+
     set_vertScaleAsLog(true);
-    x = calcButtonXLocation(Ibut++, win_x, w, xoffset,gutter_between_buttons);
-    loglinPlotButton = new Button(x,y,w,h,"Vert Scale\n" + get_vertScaleAsLogText(),fontInfo.buttonLabel_size);
-  
-    x = calcButtonXLocation(Ibut++, win_x, w, xoffset,gutter_between_buttons);
-    smoothingButton = new Button(x,y,w,h,"Smooth\n" + headPlot1.smooth_fac,fontInfo.buttonLabel_size);
     
+    //setup start/stop button
+    // x = win_x - int(gutter_right*float(win_x)) - w;
+    //x = width/2 - w;
     x = calcButtonXLocation(Ibut++, win_x, w, xoffset,gutter_between_buttons);
-    showPolarityButton = new Button(x,y,w,h,"Show Polarity\n" + headPlot1.getUsePolarityTrueFalse(),fontInfo.buttonLabel_size);
+    int w_wide = 120;    //button width, wider
+    x = x + w - w_wide-((int)(gutter_between_buttons*win_x));  //adjust the x position for the wider button, plus double the gutter
+    stopButton = new Button(x,y,w_wide,h,stopButton_pressToStart_txt,fontInfo.buttonLabel_size);
  
-     x = calcButtonXLocation(Ibut++, win_x, w, xoffset,gutter_between_buttons);
-    maxDisplayFreqButton = new Button(x,y,w,h,"Max Freq\n" + round(maxDisplayFreq_Hz[maxDisplayFreq_ind]) + " Hz",fontInfo.buttonLabel_size);
 
-
-    // //set up controlPanelCollapser button
-    // controlPanelCollapser = new Button(0, 0, width/4, 25, "Control Panel", fontInfo.buttonLabel_size);
-    // controlPanelCollapser.setIsActive(true);
-    
-    //set the signal detection button...left of center
-    //w = stopButton.but_dx;
-    //h = stopButton.but_dy;
-    //x = (int)(((float)win_x) / 2.0f - (float)w - (gutter_between_buttons*win_x)/2.0f);
-    //y = stopButton.but_y;
-    //detectButton = new Button(x,y,w,h,"Detect " + signalDetectName,fontInfo.buttonLabel_size);
-    
-    //set the show spectrogram button...right of center
-    //w = stopButton.but_dx;
-    //h = stopButton.but_dy;
-    //x = (int)(((float)win_x) / 2.0f + (gutter_between_buttons*win_x)/2.0f);
-    //y = stopButton.but_y;
-    //spectrogramButton = new Button(x,y,w,h,"Spectrogram",fontInfo.buttonLabel_size);
-       
     //set the initial display page for the GUI
     setGUIpage(GUI_PAGE_HEADPLOT_SETUP);  
   } 
   private int calcButtonXLocation(int Ibut,int win_x,int w, int xoffset, float gutter_between_buttons) {
-    return xoffset + (Ibut * (w + (int)(gutter_between_buttons*win_x)));
+    // return xoffset + (Ibut * (w + (int)(gutter_between_buttons*win_x)));
+    return width - ((Ibut+1) * (w + 2)) - 1;
   }
   
   public void setDefaultVertScale(float val_uV) {
@@ -462,8 +465,8 @@ class Gui_Manager {
     int y2 = y1 - 2;  //deflect two pixels upward
     titleMontage.x = x2;
     titleMontage.y = y2;
-    titleMontage.textColor = color(255,255,255);
-    titleMontage.setFontSize(16);
+    titleMontage.textColor = color(bgColor);
+    titleMontage.setFontSize(14);
     titleMontage.alignH = CENTER;
     
     //add channel data values and impedance values
@@ -557,7 +560,7 @@ class Gui_Manager {
     g.setBorderColour(borderColor,borderColor,borderColor);
     
     // add title
-    titleFFT = new TextBox("EEG Data (As Received)",0,0);
+    titleFFT = new TextBox("FFT Plot",0,0);
     int x2 = x1 + int(round(0.5*axis_relPos[2]*float(win_x)));
     int y2 = y1 - 2;  //deflect two pixels upward
     titleFFT.x = x2;
@@ -781,10 +784,6 @@ class Gui_Manager {
 
       //show time-domain montage, only if full channel controller is not visible, to save some processing
       gMontage.draw(); 
-      if(cc.showFullController == false){
-        // gMontage.draw(); 
-        titleMontage.draw();
-      }
     
       //add annotations
       if (showMontageValues) {
@@ -837,6 +836,7 @@ class Gui_Manager {
         intensityFactorButton.draw();
         loglinPlotButton.draw();
         filtBPButton.draw();
+        filtNotchButton.draw();
         //fftNButton.draw();
         smoothingButton.draw();
         showPolarityButton.draw();
@@ -861,30 +861,37 @@ class Gui_Manager {
     // controlPanelCollapser.draw();
 
     cc.draw();
+    if(cc.showFullController == false){
+      titleMontage.draw();
+    }
     showMontageButton.draw();
     showChannelControllerButton.draw();
 
   }
 
   public void mousePressed(){
-    verbosePrint("gui.mousePressed();");
+    verbosePrint("Gui_Manager: mousePressed: mouse pressed.");
     //if showMontage button pressed
     if(showMontageButton.isMouseHere()){
       //turn off visibility of channel full controller
       cc.showFullController = false;
       showMontageButton.setIsActive(true);
+      showMontageButton.buttonFont = f1;
       showChannelControllerButton.setIsActive(false);
+      showChannelControllerButton.buttonFont = f2;
     }
     //if showChannelController is pressed
     if(showChannelControllerButton.isMouseHere()){
       cc.showFullController = true;
       showMontageButton.setIsActive(false);
+      showMontageButton.buttonFont = f2;
       showChannelControllerButton.setIsActive(true);
+      showChannelControllerButton.buttonFont = f1;
     }
 
     //if cursor inside channel controller
     // if(mouseX >= cc.x1 && mouseX <= (cc.x2 - cc.w2) && mouseY >= cc.y1 && mouseY <= (cc.y1 + cc.h1) ){ 
-      verbosePrint("Channel Controller mouse pressed...");
+      verbosePrint("Gui_Manager: mousePressed: Channel Controller mouse pressed...");
       cc.mousePressed();
     // }
     
@@ -897,10 +904,10 @@ class Gui_Manager {
   }
 
   public void mouseReleased(){
-    verbosePrint("gui.mouseReleased();");
+    //verbosePrint("Gui_Manager: mouseReleased()");
 
     // if(mouseX >= cc.x1 && mouseX <= (cc.x2 - cc.w2) && mouseY >= cc.y1 && mouseY <= (cc.y1 + cc.h1) ){ 
-    verbosePrint("Channel Controller mouse released...");
+    verbosePrint("Gui_Manager: mouseReleased(): Channel Controller mouse released...");
     cc.mouseReleased();
 
 
@@ -909,6 +916,7 @@ class Gui_Manager {
     intensityFactorButton.setIsActive(false);
     loglinPlotButton.setIsActive(false);
     filtBPButton.setIsActive(false);
+    filtNotchButton.setIsActive(false);
     smoothingButton.setIsActive(false);
     showPolarityButton.setIsActive(false);
     maxDisplayFreqButton.setIsActive(false);

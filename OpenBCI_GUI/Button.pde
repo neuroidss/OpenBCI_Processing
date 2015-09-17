@@ -14,17 +14,21 @@ class Button {
   
   int but_x, but_y, but_dx, but_dy;      // Position of square button
   //int rectSize = 90;     // Diameter of rect
-  color color_pressed = color(51);
+  color color_pressed = color(200);
   color color_highlight = color(102);
-  color color_notPressed = color(145);
+  color color_notPressed = color(255);
+  color buttonStrokeColor = bgColor;
+  color textColorActive = color(255);
+  color textColorNotActive = bgColor;
   color rectHighlight;
   //boolean isMouseHere = false;
+  boolean buttonHasStroke = true;
   boolean isActive = false;
   boolean isDropdownButton = false;
   boolean drawHand = false;
   boolean wasPressed = false;
   public String but_txt;
-  // PFont font;
+  PFont buttonFont = f2;
 
   public Button(int x, int y, int w, int h, String txt, int fontSize) {
     setup(x, y, w, h, txt);
@@ -85,6 +89,14 @@ class Button {
     color_notPressed = _color;
   }
 
+  public void setStrokeColor(color _color){
+    buttonStrokeColor = _color;
+  }
+
+  public void hasStroke(boolean _trueORfalse){
+    buttonHasStroke = _trueORfalse;
+  }
+
   boolean overRect(int x, int y, int width, int height) {
     if (mouseX >= x && mouseX <= x+width && 
       mouseY >= y && mouseY <= y+height) {
@@ -95,17 +107,31 @@ class Button {
     }
   }
 
+  public void draw(int _x, int _y){
+    but_x = _x;
+    but_y = _y;
+    draw();
+  }
+
   public void draw() {
     //draw the button
     fill(getColor());
-    stroke(26); //button border
+    if(buttonHasStroke){
+      stroke(buttonStrokeColor); //button border
+    }else{
+      noStroke();
+    }
     // noStroke();
     rect(but_x,but_y,but_dx,but_dy);
     
     //draw the text
-    fill(0);
+    if(isActive){
+      fill(textColorActive);
+    }else{
+      fill(textColorNotActive);
+    }
     stroke(255);
-    textFont(f2);  //load f2 ... from control panel 
+    textFont(buttonFont);  //load f2 ... from control panel 
     textSize(12);
     textAlign(CENTER, CENTER);
     textLeading(round(0.9*(textAscent()+textDescent())));
